@@ -1,7 +1,4 @@
 library flutter_awesome_charts;
 
-/// A Calculator.
-class Calculator {
-  /// Returns [value] plus 1.
-  int addOne(int value) => value + 1;
-}
+export 'package:flutter_awesome_charts/src/flutter_awesome_charts/line_chart.dart'
+    show SimpleLineChart;
