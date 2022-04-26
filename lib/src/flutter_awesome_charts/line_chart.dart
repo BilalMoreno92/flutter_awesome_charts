@@ -1,3 +1,4 @@
+import 'dart:developer' as d;
 import 'dart:math';
 import 'dart:ui';
 
@@ -50,7 +51,7 @@ class _SimpleLineChartState extends State<SimpleLineChart> {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) => TweenAnimationBuilder(
-        duration: const Duration(seconds: 2),
+        duration: const Duration(milliseconds: 600),
         tween: Tween<double>(begin: 0, end: 100),
         builder: (BuildContext context, double value, Widget? child) =>
             CustomPaint(
@@ -87,7 +88,7 @@ class SimpleLineChartPainter extends CustomPainter {
   late double marginLeft;
   late double marginTop = 8;
   late double marginBottom;
-  late double marginRight = 8;
+  late double marginRight = 64;
   static double emptySpace = 8;
 
   // axis
@@ -124,27 +125,44 @@ class SimpleLineChartPainter extends CustomPainter {
   void drawLines(Size size, Canvas canvas) {
     for (var element in series) {
       var points = element.data;
+      double x =
+          ((element.maxTimestamp - element.minTimestamp) * percentage / 100) +
+              element.minTimestamp;
       for (int i = 0; i < (points.length - 1); i++) {
-        var percentageOfLine = (points.length - 1) *
-            min<double>(percentage - i * 100 / (points.length - 1),
-                100 / (points.length - 1));
-        if (percentageOfLine > 0) {
-          var firstPoint = _getPointPosition(points[i], size);
-          var goalPoint = _getPointPosition(points[i + 1], size);
-          var nextPoint = Offset(
-              percentageOfLine / 100 * (goalPoint.dx - firstPoint.dx) +
-                  firstPoint.dx,
-              percentageOfLine / 100 * (goalPoint.dy - firstPoint.dy) +
-                  firstPoint.dy);
-          canvas.drawLine(_getPointPosition(points[i], size), nextPoint,
-              _getLinePaint(element));
-          canvas.drawCircle(firstPoint, 3, _getLineDataColorPaint(element));
+        if (x > points[i].time.millisecondsSinceEpoch) {
+          Offset firstPoint = _getPointPosition(points[i], size);
+          Offset goalPoint = _getPointPosition(points[i + 1], size);
+          Offset nextPoint = _getPointPosition(
+              _getPointBetween(points[i], points[i + 1], element.maxTimestamp,
+                  element.minTimestamp, x),
+              size);
+          canvas.drawLine(firstPoint, nextPoint, _getLinePaint(element));
+          canvas.drawCircle(firstPoint, 3, _getPointPaint(element));
         }
+        if (percentage == 100) {
+          canvas.drawCircle(_getPointPosition(points[points.length - 1], size),
+              3, _getPointPaint(element));
+        }
+        // var percentageOfLine = (points.length - 1) *
+        //     min<double>(percentage - i * 100 / (points.length - 1),
+        //         100 / (points.length - 1));
+        // if (percentageOfLine > 0) {
+        //   var firstPoint = _getPointPosition(points[i], size);
+        //   var goalPoint = _getPointPosition(points[i + 1], size);
+        //   var nextPoint = Offset(
+        //       percentageOfLine / 100 * (goalPoint.dx - firstPoint.dx) +
+        //           firstPoint.dx,
+        //       percentageOfLine / 100 * (goalPoint.dy - firstPoint.dy) +
+        //           firstPoint.dy);
+        //   canvas.drawLine(firstPoint, nextPoint,
+        //       _getLinePaint(element));
+        //   canvas.drawCircle(firstPoint, 3, _getPointPaint(element));
+        // }
       }
-      if (percentage >= 99.9) {
-        canvas.drawCircle(_getPointPosition(points[points.length - 1], size), 3,
-            _getLineDataColorPaint(element));
-      }
+      // if (percentage >= 99.9) {
+      //   canvas.drawCircle(_getPointPosition(points[points.length - 1], size), 3,
+      //       _getPointPaint(element));
+      // }
     }
   }
 
@@ -154,7 +172,7 @@ class SimpleLineChartPainter extends CustomPainter {
       ..color = lineData.color.withOpacity(0.5);
   }
 
-  Paint _getLineDataColorPaint(SeriesData lineData) {
+  Paint _getPointPaint(SeriesData lineData) {
     return Paint()
       ..strokeWidth = 1
       ..color = lineData.color;
@@ -162,7 +180,7 @@ class SimpleLineChartPainter extends CustomPainter {
 
   Offset _getPointPosition(DataPoint dataPoint, Size size) => Offset(
       _getHorizontalPosition(
-          size, dataPoint.time.millisecondsSinceEpoch as double),
+          size, dataPoint.time.millisecondsSinceEpoch.toDouble()),
       _getVerticalPosition(size, dataPoint.value));
 
   double chartHeight(Size size) => size.height - marginTop - marginBottom;
@@ -185,6 +203,22 @@ class SimpleLineChartPainter extends CustomPainter {
 
   double _getHorizontalPosition(Size size, double value) {
     return marginLeft + _getHorizontalDistance(size) * (value - leftLimit);
+  }
+
+  DataPoint _getPointBetween(DataPoint first, DataPoint second,
+      int maxTimestamp, int minTimestamp, double x) {
+    double slope = (second.value - first.value) /
+        (second.time.millisecondsSinceEpoch -
+            first.time.millisecondsSinceEpoch);
+    double y = slope * (x - first.time.millisecondsSinceEpoch) + first.value;
+    return DataPoint(
+        DateTime.fromMillisecondsSinceEpoch(
+            x.toInt() > second.time.millisecondsSinceEpoch
+                ? second.time.millisecondsSinceEpoch
+                : x.toInt()),
+        slope > 0 && y > second.value || slope < 0 && y < second.value
+            ? second.value
+            : y);
   }
 
   TextPainter _createText(String key, double scale) {
