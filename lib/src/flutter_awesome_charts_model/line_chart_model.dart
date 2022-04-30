@@ -5,6 +5,8 @@ class DataPoint {
   final double value;
 
   DataPoint(this.time, this.value);
+
+  Offset toOffset() => Offset(time.millisecondsSinceEpoch.toDouble(), value);
 }
 
 class SeriesData {
