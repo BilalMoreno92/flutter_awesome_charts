@@ -30,16 +30,20 @@ class _SimpleLineChartState extends State<SimpleLineChart> {
 
   @override
   void initState() {
-    topLimit = double.negativeInfinity;
-    bottomLimit = double.infinity;
+    topLimit = widget.series.first.max;
+    bottomLimit = widget.series.first.min;
     leftLimit = widget.series.first.minTimestamp;
     rightLimit = widget.series.first.maxTimestamp;
     for (var element in widget.series) {
       if (element.max > topLimit) {
-        topLimit = element.max + 1 - element.max % 1;
+        topLimit = element.max <= 0
+            ? 0
+            : element.max /*+ ((element.max-element.min)/100)*/;
       }
       if (element.min < bottomLimit) {
-        bottomLimit = element.min > 0 ? 0 : element.min - 1 + element.min % 1;
+        bottomLimit = element.min >= 0
+            ? 0
+            : element.min /*- ((element.max-element.min)/100)*/;
       }
       if (element.minTimestamp < leftLimit) {
         leftLimit = element.minTimestamp;
@@ -48,7 +52,14 @@ class _SimpleLineChartState extends State<SimpleLineChart> {
         rightLimit = element.maxTimestamp;
       }
     }
-
+    if (topLimit == bottomLimit) {
+      topLimit += 0.1;
+      bottomLimit -= 0.1;
+    }
+    if (leftLimit == rightLimit) {
+      rightLimit += 1000;
+      leftLimit -= 1000;
+    }
     super.initState();
   }
 
@@ -61,7 +72,7 @@ class _SimpleLineChartState extends State<SimpleLineChart> {
           Expanded(
             child: LayoutBuilder(
               builder: (context, constraints) => TweenAnimationBuilder(
-                duration: const Duration(seconds: 10),
+                duration: const Duration(seconds: 2),
                 tween: Tween<double>(begin: 0, end: 100),
                 builder:
                     (BuildContext context, double percentage, Widget? child) =>
@@ -92,6 +103,3 @@ class _SimpleLineChartState extends State<SimpleLineChart> {
     );
   }
 }
-
-
-

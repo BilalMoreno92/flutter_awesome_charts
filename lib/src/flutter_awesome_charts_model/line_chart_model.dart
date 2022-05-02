@@ -1,14 +1,5 @@
 import 'package:flutter/material.dart';
 
-class DataPoint {
-  final DateTime time;
-  final double value;
-
-  DataPoint(this.time, this.value);
-
-  Offset toOffset() => Offset(time.millisecondsSinceEpoch.toDouble(), value);
-}
-
 class SeriesData {
   final List<DataPoint> data;
   final String label;
@@ -21,7 +12,7 @@ class SeriesData {
   SeriesData({
     required this.label,
     required this.data,
-    this.color = Colors.green,
+    this.color = Colors.blue,
   }) {
     max = data.first.value;
     min = data.first.value;
@@ -56,4 +47,13 @@ class SeriesData {
       minTimestamp = dataPoint.time.millisecondsSinceEpoch;
     }
   }
+}
+
+class DataPoint {
+  final DateTime time;
+  final double value;
+
+  DataPoint(this.time, this.value);
+
+  Offset toOffset() => Offset(time.millisecondsSinceEpoch.toDouble(), value);
 }

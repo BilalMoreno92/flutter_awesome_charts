@@ -1,5 +1,7 @@
+
 import 'package:flutter/material.dart';
 import 'package:flutter_awesome_charts/src/flutter_awesome_charts_model/line_chart_model.dart';
+import 'package:intl/intl.dart' show DateFormat;
 
 ///Paints a line inside the available space based on [series]
 class SimpleLineChartPainter extends CustomPainter {
@@ -13,22 +15,16 @@ class SimpleLineChartPainter extends CustomPainter {
   //margin
   EdgeInsets margin;
 
-  static double emptySpace = 4;
-  static double textScale = 0.8;
+  double emptySpace = 4;
+  double textScale = 0.8;
 
   //grid
-  int linesNumber = 10;
-
-  // axis
-  static double axisWidth = 2;
-  static double axisTextScale = 1;
+  int linesNumber = 9;
+  int pxBetweenLines = 40;
+  int pxBetweenVerticalLines = 150;
+  String dateFormat = "dd/MM/yyyy HH:mm:ss";
 
   double get x => ((rightLimit - leftLimit) * percentage / 100) + leftLimit;
-
-  // two main lines
-  Paint axis = Paint()
-    ..strokeWidth = axisWidth
-    ..color = Colors.grey;
 
   SimpleLineChartPainter({
     required this.series,
@@ -37,23 +33,18 @@ class SimpleLineChartPainter extends CustomPainter {
     required this.leftLimit,
     required this.rightLimit,
     this.percentage = 100,
-    this.margin = EdgeInsets.zero,
+    this.margin = const EdgeInsets.all(8),
   }) {
     //margen izquierdo basado en el límite superior del eje
     margin = margin.copyWith(
-        bottom: createText("1", axisTextScale).height * 2 + emptySpace);
-    for (double height = bottomLimit;
-        height <= topLimit;
-        height = height + ((topLimit - bottomLimit) / linesNumber)) {
-      TextPainter tp = createText(height.roundToDouble().toString(), textScale);
-      if (tp.width + emptySpace > margin.left) {
-        margin = margin.copyWith(left: tp.width + emptySpace + 8);
-      }
-    }
+        bottom: createText("1", textScale).height * 2 + emptySpace,
+        top: createText("1", textScale).height);
   }
 
   @override
   void paint(Canvas canvas, Size size) {
+    updateMargin();
+    linesNumber = chartHeight(size) ~/ pxBetweenLines;
     drawLines(size, canvas);
   }
 
@@ -64,26 +55,30 @@ class SimpleLineChartPainter extends CustomPainter {
   void drawLines(Size size, Canvas canvas) {
     for (var element in series) {
       List<DataPoint> points = element.data;
-      for (int i = 0; i < (points.length - 1); i++) {
-        if (x > points[i].time.millisecondsSinceEpoch) {
+      for (int i = 0; i < points.length - 1; i++) {
+        if (x >= points[i].time.millisecondsSinceEpoch) {
           Offset firstPoint = getPointPosition(points[i].toOffset(), size);
+          Offset secondPoint = getPointPosition(points[i + 1].toOffset(), size);
           Offset nextPoint = getPointPosition(
               _getPointBetween(points[i].toOffset(), points[i + 1].toOffset(),
                   element.maxTimestamp, element.minTimestamp, x),
               size);
           canvas.drawLine(firstPoint, nextPoint, getLinePaint(element));
-          canvas.drawCircle(firstPoint, 3, getPointPaint(element));
+          canvas.drawCircle(firstPoint, 2.5, getPointPaint(element));
+          if (secondPoint != nextPoint) {
+            canvas.drawCircle(nextPoint, 3, getPointPaint(element));
+          }
         }
-        if (percentage == 100) {
-          canvas.drawCircle(getPointPosition(points.last.toOffset(), size), 3,
-              getPointPaint(element));
-        }
+      }
+      if (percentage == 100) {
+        canvas.drawCircle(getPointPosition(points.last.toOffset(), size), 2.5,
+            getPointPaint(element));
       }
     }
   }
 
   Paint getLinePaint(SeriesData lineData) => Paint()
-    ..strokeWidth = 3
+    ..strokeWidth = 2
     ..color = lineData.color.withOpacity(0.5);
 
   Paint getGridPaint() => Paint()
@@ -95,7 +90,7 @@ class SimpleLineChartPainter extends CustomPainter {
     ..color = lineData.color;
 
   Offset getPointPosition(Offset dataPoint, Size size) => Offset(
-      _getHorizontalPosition(size, dataPoint.dx),
+      getHorizontalPosition(size, dataPoint.dx),
       getVerticalPosition(size, dataPoint.dy));
 
   double chartHeight(Size size) => size.height - margin.top - margin.bottom;
@@ -110,11 +105,11 @@ class SimpleLineChartPainter extends CustomPainter {
   double _getVerticalDistance(Size size) =>
       chartHeight(size) / (topLimit - bottomLimit);
 
-  double _getHorizontalDistance(Size size) =>
+  double getHorizontalDistance(Size size) =>
       chartWidth(size) / (rightLimit - leftLimit);
 
-  double _getHorizontalPosition(Size size, double value) =>
-      margin.left + _getHorizontalDistance(size) * (value - leftLimit);
+  double getHorizontalPosition(Size size, double value) =>
+      margin.left + getHorizontalDistance(size) * (value - leftLimit);
 
   Offset _getPointBetween(Offset first, Offset second, int maxTimestamp,
       int minTimestamp, double x) {
@@ -127,11 +122,10 @@ class SimpleLineChartPainter extends CustomPainter {
             : y);
   }
 
-  TextPainter createText(String key, double scale, {int alpha = 255}) {
+  TextPainter createText(String text, double scale, {int alpha = 255}) {
     TextSpan span = TextSpan(
-        style: TextStyle(
-            color: Colors.grey[600]?.withAlpha(alpha)),
-        text: key);
+        style: TextStyle(color: Colors.grey[600]?.withAlpha(alpha)),
+        text: text);
     TextPainter textPainter = TextPainter(
         text: span,
         textAlign: TextAlign.start,
@@ -139,5 +133,46 @@ class SimpleLineChartPainter extends CustomPainter {
         textDirection: TextDirection.ltr);
     textPainter.layout();
     return textPainter;
+  }
+
+  String formatNumber(double value) {
+    int precision = 0;
+    if (value.toString().contains('.')) {
+      if ((topLimit - bottomLimit).abs() < 0.1) {
+        precision = 4;
+      } else if ((topLimit - bottomLimit).abs() < 1) {
+        precision = 3;
+      } else if ((topLimit - bottomLimit).abs() < 10) {
+        precision = 2;
+      } else if ((topLimit - bottomLimit).abs() < 100) {
+        precision = 1;
+      }
+    }
+    return value.toStringAsFixed(precision);
+  }
+
+  void updateMargin() {
+    for (double height = bottomLimit;
+        height <= topLimit;
+        height = height + ((topLimit - bottomLimit) / linesNumber)) {
+      TextPainter tp = createText(formatNumber(height), textScale);
+      if (tp.width + emptySpace + 8 > margin.left) {
+        margin = margin.copyWith(left: tp.width + emptySpace + 8);
+      }
+    }
+    for (int width = leftLimit;
+        width <= rightLimit;
+        width += (rightLimit - leftLimit) ~/ 4) {
+      TextPainter tp = createText(
+          DateFormat(dateFormat)
+              .format(DateTime.fromMillisecondsSinceEpoch(width)), textScale,
+          alpha: 255 * percentage ~/ 100);
+      if (tp.width / 2 + 8 > margin.left) {
+        margin = margin.copyWith(left: tp.width / 2 + 8);
+      }
+      if (tp.width / 2 + 8 > margin.right) {
+        margin = margin.copyWith(right: tp.width / 2 + 8);
+      }
+    }
   }
 }
