@@ -5,7 +5,6 @@ import 'package:flutter_awesome_charts/flutter_awesome_charts.dart'
     show SimpleLineChart;
 import 'package:flutter_awesome_charts/flutter_awesome_charts_model.dart'
     show SeriesData, DataPoint;
-import 'package:intl/intl.dart';
 
 void main() {
   runApp(const MyApp());
@@ -21,6 +20,7 @@ class MyApp extends StatelessWidget {
       title: 'Flutter Demo',
       theme: ThemeData(
         primarySwatch: Colors.blue,
+        brightness: Brightness.dark,
       ),
       home: const MyHomePage(title: 'Flutter Demo Home Page'),
     );
@@ -43,18 +43,35 @@ class _MyHomePageState extends State<MyHomePage> {
       appBar: AppBar(
         title: Text(widget.title),
       ),
-      body: Center(
-        child: LayoutBuilder(builder: (context, constraints) {
-          return Container(
-              color: Colors.black87,
-              height: constraints.maxHeight / 1.5,
-              child: SimpleLineChart(
-                padding: const EdgeInsets.all(0),
-                series: [
-                  seriesData, /*seriesData2, seriesData3, seriesData4*/
-                ],
-              ));
-        }),
+      body: GridView(
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2, mainAxisExtent: 300),
+        children: [
+          SimpleLineChart(
+            padding: const EdgeInsets.all(0),
+            series: [
+              seriesData,
+              seriesData3,
+              seriesData4,
+            ],
+          ),
+          SimpleLineChart(
+            padding: const EdgeInsets.all(0),
+            series: [
+              seriesData2, /*seriesData2, seriesData3, seriesData4*/
+            ],
+          ),
+          SimpleLineChart(
+            padding: const EdgeInsets.all(0),
+            series: [seriesData3, seriesData4],
+          ),
+          SimpleLineChart(
+            padding: const EdgeInsets.all(0),
+            series: [
+              seriesData4, /*seriesData2, seriesData3, seriesData4*/
+            ],
+          ),
+        ],
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {},
@@ -117,30 +134,28 @@ final SeriesData seriesData = SeriesData(
       {"time": "2022-04-07T12:39:50.000Z", "mean": 3},
       {"time": "2022-04-07T12:39:55.000Z", "mean": 1},
     ]
-        .map((e) => DataPoint(
-            DateTime.parse(e["time"].toString())
-                .toLocal(),
+        .map((e) => DataPoint(DateTime.parse(e["time"].toString()).toLocal(),
             (e["mean"] as num).toDouble()))
         .toList());
 
 final Random random = Random();
 
 final SeriesData seriesData2 = SeriesData(
-    label: "Temperatura",
+    label: "Vibración",
     color: Colors.amber,
     data: seriesData.data
         .map((e) => DataPoint(e.time, ((random.nextInt(600)) / 10000)))
         .toList());
 
 final SeriesData seriesData3 = SeriesData(
-    label: "Temperatura",
-    color: Colors.blue,
+    label: "Caudal",
+    color: Colors.green,
     data: seriesData.data
         .map((e) => DataPoint(e.time, ((random.nextInt(600)) / 100)))
         .toList());
 
 final SeriesData seriesData4 = SeriesData(
-    label: "Temperatura",
+    label: "Humedad",
     color: Colors.deepOrange,
     data: seriesData.data
         .map((e) => DataPoint(e.time, ((random.nextInt(600)) / 100)))

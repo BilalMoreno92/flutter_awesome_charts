@@ -33,7 +33,7 @@ class SimpleLineChartPainter extends CustomPainter {
     required this.leftLimit,
     required this.rightLimit,
     this.percentage = 100,
-    this.margin = const EdgeInsets.all(8),
+    this.margin = EdgeInsets.zero,
   }) {
     //margen izquierdo basado en el límite superior del eje
     margin = margin.copyWith(
