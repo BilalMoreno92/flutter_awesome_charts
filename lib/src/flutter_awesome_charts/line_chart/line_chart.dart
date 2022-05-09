@@ -1,22 +1,42 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_awesome_charts/src/flutter_awesome_charts/line_chart/grid_painter.dart';
+import 'package:flutter_awesome_charts/src/flutter_awesome_charts/line_chart/legend_widget.dart';
 import 'package:flutter_awesome_charts/src/flutter_awesome_charts/line_chart/line_chart_painter.dart';
 import 'package:flutter_awesome_charts/src/flutter_awesome_charts_model/line_chart_model.dart';
 
 /// A simple line chart
-class SimpleLineChart extends StatefulWidget {
+class LineChart extends StatefulWidget {
   final List<SeriesData> series;
   final EdgeInsets padding;
+  final Legend legend;
+  final LegendPosition legendPosition;
+  final bool animate;
+  final bool drawLine;
+  final bool drawPoints;
+  final bool drawAxis;
+  final bool drawGrid;
 
-  const SimpleLineChart(
-      {Key? key, required this.series, this.padding = EdgeInsets.zero})
-      : super(key: key);
+  const LineChart({
+    Key? key,
+    required this.series,
+    this.padding = EdgeInsets.zero,
+    this.legend = Legend.none,
+    this.legendPosition = LegendPosition.bottom,
+    this.animate = false,
+    this.drawLine = true,
+    this.drawPoints = false,
+    this.drawAxis = true,
+    this.drawGrid = false,
+  }) : super(key: key);
 
   @override
-  State<SimpleLineChart> createState() => _SimpleLineChartState();
+  State<LineChart> createState() => _LineChartState();
 }
 
-class _SimpleLineChartState extends State<SimpleLineChart> {
+class _LineChartState extends State<LineChart>
+    with AutomaticKeepAliveClientMixin {
   late double topLimit;
   late double bottomLimit;
   late int leftLimit;
@@ -26,73 +46,68 @@ class _SimpleLineChartState extends State<SimpleLineChart> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     updateLimits();
     return Container(
       padding: widget.padding,
       child: TweenAnimationBuilder(
-          duration: const Duration(seconds: 2),
+          duration: Duration(seconds: widget.animate ? 2 : 0),
           tween: Tween<double>(begin: 0, end: 100),
           builder: (BuildContext context, double percentage, Widget? child) =>
-              Row(
+              Flex(
                 crossAxisAlignment: CrossAxisAlignment.start,
+                direction: widget.legendPosition == LegendPosition.bottom
+                    ? Axis.vertical
+                    : Axis.horizontal,
                 children: [
+                  if (widget.legendPosition == LegendPosition.left &&
+                      widget.legend != Legend.none)
+                    LegendWidget(
+                      series: widget.series,
+                      percentage: percentage,
+                      legend: widget.legend,
+                    ),
                   Expanded(
                     flex: 5,
                     child: LayoutBuilder(
-                      builder: (context, constraints) => CustomPaint(
-                        size: Size(constraints.maxWidth, constraints.maxHeight),
-                        foregroundPainter: SimpleLineChartPainter(
+                      builder: (context, constraints) => SingleChildScrollView(
+                        scrollDirection: Axis.vertical,
+                        controller: ScrollController(),
+                        child: CustomPaint(
+                          size: Size(max(constraints.maxWidth, 150),
+                              max(constraints.maxHeight, 100)),
+                          foregroundPainter: SimpleLineChartPainter(
                             series: widget.series,
                             bottomLimit: bottomLimit,
                             topLimit: topLimit,
                             rightLimit: rightLimit,
                             leftLimit: leftLimit,
-                            percentage: percentage),
-                        painter: SimpleLineChartGridPainter(
+                            percentage: percentage,
+                            drawPoints: widget.drawPoints,
+                            drawLine: widget.drawLine,
+                          ),
+                          painter: SimpleLineChartGridPainter(
                             series: widget.series,
                             bottomLimit: bottomLimit,
                             topLimit: topLimit,
                             leftLimit: leftLimit,
                             rightLimit: rightLimit,
-                            percentage: percentage),
+                            percentage: percentage,
+                            drawAxis: widget.drawAxis,
+                            drawGrid: widget.drawGrid,
+                          ),
+                        ),
                       ),
                     ),
                   ),
-                  Container(
-                    decoration: BoxDecoration(border: Border.all(color:Colors.grey.withOpacity(
-                        0.5*percentage / 100))),
-                    margin: const EdgeInsets.all(8),
-                    padding: const EdgeInsets.only(top: 8, right: 8, bottom: 8),
-                    child: Column(mainAxisSize: MainAxisSize.min,
-                      mainAxisAlignment: MainAxisAlignment.start,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: widget.series
-                          .map((e) => Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Container(
-                                      margin: const EdgeInsets.all(4),
-                                      color:
-                                          e.color.withOpacity(percentage / 100),
-                                      height: 12,
-                                      width: 12),
-                                  Padding(
-                                    padding: const EdgeInsets.all(4),
-                                    child: Text(
-                                      e.label,
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .bodySmall
-                                          ?.copyWith(
-                                              color: Colors.grey.withOpacity(
-                                                  percentage / 100)),
-                                    ),
-                                  )
-                                ],
-                              ))
-                          .toList(),
+                  if ((widget.legendPosition == LegendPosition.right ||
+                          widget.legendPosition == LegendPosition.bottom) &&
+                      widget.legend != Legend.none)
+                    LegendWidget(
+                      series: widget.series,
+                      percentage: percentage,
+                      legend: widget.legend,
                     ),
-                  ),
                 ],
               )),
     );
@@ -130,4 +145,19 @@ class _SimpleLineChartState extends State<SimpleLineChart> {
       leftLimit -= 1000;
     }
   }
+
+  @override
+  bool get wantKeepAlive => true;
+}
+
+enum Legend {
+  table,
+  list,
+  none,
+}
+
+enum LegendPosition {
+  left,
+  bottom,
+  right,
 }

@@ -2,7 +2,7 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_awesome_charts/flutter_awesome_charts.dart'
-    show SimpleLineChart;
+    show Legend, LegendPosition, LineChart;
 import 'package:flutter_awesome_charts/flutter_awesome_charts_model.dart'
     show SeriesData, DataPoint;
 
@@ -47,42 +47,54 @@ class _MyHomePageState extends State<MyHomePage> {
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: 2, mainAxisExtent: 300),
         children: [
-          SimpleLineChart(
+          LineChart(
             padding: const EdgeInsets.all(0),
             series: [
               seriesData,
               seriesData3,
               seriesData4,
             ],
+            legend: Legend.table,
+            legendPosition: LegendPosition.left,
+            animate: true,
           ),
-          SimpleLineChart(
+          LineChart(
             padding: const EdgeInsets.all(0),
             series: [
-              seriesData2, /*seriesData2, seriesData3, seriesData4*/
+              seriesData2,
+              seriesData3, /*seriesData2, seriesData3, seriesData4*/
             ],
+            animate: true,
+            drawPoints: true,
+            drawAxis: false,
+            legend: Legend.list,
           ),
-          SimpleLineChart(
+          LineChart(
             padding: const EdgeInsets.all(0),
             series: [seriesData3, seriesData4],
+            legend: Legend.table,
+            legendPosition: LegendPosition.right,
+            drawPoints: true,
+            drawGrid: true,
           ),
-          SimpleLineChart(
+          LineChart(
             padding: const EdgeInsets.all(0),
             series: [
               seriesData4, /*seriesData2, seriesData3, seriesData4*/
             ],
+            animate: true,
+            drawPoints: true,
+            drawLine: false,
+            drawGrid: true,
           ),
         ],
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {},
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
       ),
     );
   }
 }
 
 final SeriesData seriesData = SeriesData(
+    color: Colors.pink,
     label: "Temperatura",
     data: [
       {"time": "2022-04-07T12:36:00.000Z", "mean": 0},
@@ -149,14 +161,14 @@ final SeriesData seriesData2 = SeriesData(
 
 final SeriesData seriesData3 = SeriesData(
     label: "Caudal",
-    color: Colors.green,
+    color: Colors.orange,
     data: seriesData.data
         .map((e) => DataPoint(e.time, ((random.nextInt(600)) / 100)))
         .toList());
 
 final SeriesData seriesData4 = SeriesData(
     label: "Humedad",
-    color: Colors.deepOrange,
+    color: Colors.cyan,
     data: seriesData.data
         .map((e) => DataPoint(e.time, ((random.nextInt(600)) / 100)))
         .toList());

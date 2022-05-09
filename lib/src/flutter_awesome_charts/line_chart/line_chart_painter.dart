@@ -1,3 +1,4 @@
+import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_awesome_charts/src/flutter_awesome_charts_model/line_chart_model.dart';
@@ -11,6 +12,9 @@ class SimpleLineChartPainter extends CustomPainter {
   final int leftLimit;
   final int rightLimit;
   final double percentage;
+
+  final bool drawLine;
+  final bool drawPoints;
 
   //margin
   EdgeInsets margin;
@@ -34,6 +38,8 @@ class SimpleLineChartPainter extends CustomPainter {
     required this.rightLimit,
     this.percentage = 100,
     this.margin = EdgeInsets.zero,
+    this.drawLine = true,
+    this.drawPoints = false,
   }) {
     //margen izquierdo basado en el límite superior del eje
     margin = margin.copyWith(
@@ -43,6 +49,7 @@ class SimpleLineChartPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
+    updateDateFormat(size);
     updateMargin();
     linesNumber = chartHeight(size) ~/ pxBetweenLines;
     drawLines(size, canvas);
@@ -63,14 +70,18 @@ class SimpleLineChartPainter extends CustomPainter {
               _getPointBetween(points[i].toOffset(), points[i + 1].toOffset(),
                   element.maxTimestamp, element.minTimestamp, x),
               size);
-          canvas.drawLine(firstPoint, nextPoint, getLinePaint(element));
-          canvas.drawCircle(firstPoint, 2.5, getPointPaint(element));
-          if (secondPoint != nextPoint) {
+          if (drawLine) {
+            canvas.drawLine(firstPoint, nextPoint, getLinePaint(element));
+          }
+          if(drawPoints) {
+            canvas.drawCircle(firstPoint, 2.5, getPointPaint(element));
+          }
+          if (secondPoint != nextPoint && drawPoints && drawLine) {
             canvas.drawCircle(nextPoint, 3, getPointPaint(element));
           }
         }
       }
-      if (percentage == 100) {
+      if (percentage == 100 && drawPoints) {
         canvas.drawCircle(getPointPosition(points.last.toOffset(), size), 2.5,
             getPointPaint(element));
       }
@@ -165,7 +176,8 @@ class SimpleLineChartPainter extends CustomPainter {
         width += (rightLimit - leftLimit) ~/ 4) {
       TextPainter tp = createText(
           DateFormat(dateFormat)
-              .format(DateTime.fromMillisecondsSinceEpoch(width)), textScale,
+              .format(DateTime.fromMillisecondsSinceEpoch(width)),
+          textScale,
           alpha: 255 * percentage ~/ 100);
       if (tp.width / 2 + 8 > margin.left) {
         margin = margin.copyWith(left: tp.width / 2 + 8);
@@ -174,5 +186,55 @@ class SimpleLineChartPainter extends CustomPainter {
         margin = margin.copyWith(right: tp.width / 2 + 8);
       }
     }
+  }
+
+  Duration updateDateFormat(Size size) {
+    Duration total = DateTime.fromMillisecondsSinceEpoch(rightLimit)
+        .difference(DateTime.fromMillisecondsSinceEpoch(leftLimit));
+    Duration interval =
+        total ~/ max((chartWidth(size) ~/ pxBetweenVerticalLines), 2);
+    if (total.inDays > 30) {
+      interval = const Duration(days: 1);
+    } else if (total.inDays > 5) {
+      interval = const Duration(days: 1);
+    } else if (total.inDays > 1) {
+      interval = const Duration(days: 1);
+    } else if (total.inHours > 12) {
+      interval = const Duration(hours: 1);
+    } else if (total.inHours > 1) {
+      interval = const Duration(hours: 1);
+    } else if (total.inMinutes > 1) {
+      interval = const Duration(seconds: 30);
+    } else if (total.inSeconds > 1) {
+      interval = const Duration(milliseconds: 500);
+    } else {
+      interval = const Duration(milliseconds: 200);
+    }
+    double distance = getHorizontalDistance(size) * interval.inMilliseconds;
+    TextPainter tp = createText(
+        "00/00 00:00" + (interval.inSeconds < 1 ? ".000" : ""), textScale);
+    while (distance < tp.width + 32) {
+      interval *= 2;
+      distance = getHorizontalDistance(size) * interval.inMilliseconds;
+      tp = createText(
+          "00/00 00:00" + (interval.inSeconds < 1 ? ".000" : ""), textScale);
+    }
+    while (distance > tp.width * 2 + 32) {
+      interval ~/= 2;
+      distance = getHorizontalDistance(size) * interval.inMilliseconds;
+      tp = createText(
+          "00/00 00:00" + (interval.inSeconds < 1 ? ".000" : ""), textScale);
+    }
+
+    if (interval.inDays >= 30) {
+      dateFormat = "MM/yyyy";
+    } else if (interval.inDays >= 1) {
+      dateFormat = "dd/MM/yyyy";
+    } else if (interval.inHours >= 1) {
+      dateFormat = "dd/MM HH:mm";
+    } else {
+      dateFormat = "HH:mm:ss";
+    }
+    return interval;
   }
 }
