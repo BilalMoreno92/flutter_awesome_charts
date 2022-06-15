@@ -9,46 +9,59 @@ class SimpleLineChartGridPainter extends SimpleLineChartPainter {
   final bool drawGrid;
   final bool drawAxis;
 
-  SimpleLineChartGridPainter({
-    required List<SeriesData> series,
-    required double topLimit,
-    required double bottomLimit,
-    required int leftLimit,
-    required int rightLimit,
-    required double percentage,
-    this.drawGrid = false,
-    this.drawAxis = true,
-  }) : super(
-            series: series,
+  SimpleLineChartGridPainter(
+      {required List<SeriesData> series,
+      required double topLimit,
+      required double bottomLimit,
+      required int leftLimit,
+      required int rightLimit,
+      required double percentage,
+      required Brightness brightness,
+      required Offset? mousePosition,
+      this.drawGrid = false,
+      this.drawAxis = true})
+      : super(
+            data: series,
             topLimit: topLimit,
             bottomLimit: bottomLimit,
             leftLimit: leftLimit,
             rightLimit: rightLimit,
-            percentage: percentage);
+            percentage: percentage,
+            brightness: brightness,
+            mousePosition: mousePosition);
 
   @override
   void paint(Canvas canvas, Size size) {
     updateDateFormat(size);
-    updateMargin();
-    drawHorizontalLines(canvas, size);
-    if (drawAxis) drawHorizontalAxisMarks(size, canvas);
-    if (drawAxis) drawVerticalAxis(size, canvas);
+    updateMargin(size);
+    _drawHorizontalLines(canvas, size);
+    _drawMouseHover(canvas, size);
+    if (drawAxis) _drawHorizontalAxisMarks(canvas, size);
+    if (drawAxis) _drawVerticalAxis(canvas, size);
   }
 
-  void drawVerticalAxis(Size size, Canvas canvas) {
+  Paint _getGridPaint() => Paint()
+    ..strokeWidth = 1
+    ..color = Colors.grey.withOpacity(0.5);
+
+  Paint _getMouseHoverPaint() => Paint()
+    ..strokeWidth = 1
+    ..color = brightness == Brightness.light ? Colors.black54 : Colors.white60;
+
+  void _drawVerticalAxis(Canvas canvas, Size size) {
     // Punto más bajo del eje vertical
     Offset bottom =
-        getPointPosition(Offset(leftLimit.toDouble(), bottomLimit), size);
+        pointToOffset(Offset(leftLimit.toDouble(), bottomLimit), size);
     // Punto más alto del eje vertical, basado en porcentaje
-    Offset top = getPointPosition(
+    Offset top = pointToOffset(
         Offset(leftLimit.toDouble(),
             bottomLimit + ((topLimit - bottomLimit) * percentage / 100)),
         size);
     //Dibujar eje vertical
-    canvas.drawLine(bottom, top, getGridPaint());
+    canvas.drawLine(bottom, top, _getGridPaint());
   }
 
-  void drawHorizontalAxisMarks(Size size, Canvas canvas) {
+  void _drawHorizontalAxisMarks(Canvas canvas, Size size) {
     // Calcular distancia entre divisiones del eje horizontal
     Duration interval = updateDateFormat(size);
 
@@ -63,7 +76,7 @@ class SimpleLineChartGridPainter extends SimpleLineChartPainter {
             leftLimit;
         if (x >= width) {
           Offset top =
-              getPointPosition(Offset(width.toDouble(), bottomLimit), size);
+              pointToOffset(Offset(width.toDouble(), bottomLimit), size);
           Offset bottom = top + const Offset(0, 4);
           TextPainter horizontalAxisText = createText(
               DateFormat(dateFormat)
@@ -73,14 +86,14 @@ class SimpleLineChartGridPainter extends SimpleLineChartPainter {
               alpha: 255 * percentage ~/ 100);
           horizontalAxisText.paint(canvas,
               bottom + Offset(-horizontalAxisText.width / 2, emptySpace));
-          canvas.drawLine(top + Offset(0, getGridPaint().strokeWidth), bottom,
-              getGridPaint());
+          canvas.drawLine(top + Offset(0, _getGridPaint().strokeWidth), bottom,
+              _getGridPaint());
         }
       }
     }
   }
 
-  void drawHorizontalLines(Canvas canvas, Size size) {
+  void _drawHorizontalLines(Canvas canvas, Size size) {
     // Calcular el numero de líneas horizontales
     linesNumber = chartHeight(size) ~/ pxBetweenLines;
     // Por cada línea horizontal se calcula su alutura
@@ -91,9 +104,8 @@ class SimpleLineChartGridPainter extends SimpleLineChartPainter {
       TextPainter verticalAxisText = createText(formatNumber(height), textScale,
           alpha: 255 * percentage ~/ 100);
       // Punto más a la izquierda de la línea (4 píxeles a la izquierda del eje vertical)
-      Offset left =
-          getPointPosition(Offset(leftLimit.toDouble(), height), size) -
-              const Offset(4, 0);
+      Offset left = pointToOffset(Offset(leftLimit.toDouble(), height), size) -
+          const Offset(4, 0);
       // Calcular "x" basado en porcetaje de la animación y altura de la línea,
       // para que la línea más alta se dibuje más rápido que la más baja
       double x = ((rightLimit - leftLimit) *
@@ -107,18 +119,53 @@ class SimpleLineChartGridPainter extends SimpleLineChartPainter {
                       (topLimit - bottomLimit))) +
           leftLimit;
       // Punto más a la derecha de la línea, basado en "x"
-      Offset right = getPointPosition(
+      Offset right = pointToOffset(
               Offset(
-                  drawGrid ||(drawAxis&& height == bottomLimit) ? x : leftLimit.toDouble(),
+                  drawGrid || (drawAxis && height == bottomLimit)
+                      ? x
+                      : leftLimit.toDouble(),
                   height),
               size) +
-          Offset(getGridPaint().strokeWidth, 0);
+          Offset(_getGridPaint().strokeWidth, 0);
       // Dibujar texto justo a la izquierda del punto más a la izquierda de la línea
       // ajustando la posición de este para que esté centrado en la línea y separado de esta
       verticalAxisText.paint(canvas,
           left - Offset(verticalAxisText.width + emptySpace, 8 * textScale));
       // Dibujar línea
-      canvas.drawLine(left, right, getGridPaint());
+      canvas.drawLine(left, right, _getGridPaint());
+    }
+  }
+
+  void _drawMouseHover(Canvas canvas, Size size) {
+    if (percentage == 100 &&
+        mousePosition != null &&
+        mousePosition!.dx <= size.width - margin.right &&
+        mousePosition!.dx >= margin.left &&
+        mousePosition!.dy <= size.height - margin.bottom &&
+        mousePosition!.dy >= margin.top) {
+      const int dashWidth = 8;
+      const int dashSpace = 4;
+      double x = margin.left;
+      double y = margin.top;
+      while (x < size.width - margin.right || y < size.height - margin.bottom) {
+        if (x < size.width - margin.right) {
+          canvas.drawLine(
+              Offset(x, mousePosition!.dy),
+              Offset(min(x + dashWidth, size.width - margin.right),
+                  mousePosition!.dy),
+              _getMouseHoverPaint());
+        }
+        if (y < size.height - margin.bottom) {
+          canvas.drawLine(
+              Offset(mousePosition!.dx, y),
+              Offset(mousePosition!.dx,
+                  min(y + dashWidth, size.height - margin.bottom)),
+              _getMouseHoverPaint());
+        }
+        x += dashWidth + dashSpace;
+        y += dashWidth + dashSpace;
+      }
+      // canvas.drawCircle(mousePosition!, 4, getGridPaint());
     }
   }
 }

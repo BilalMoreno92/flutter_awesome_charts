@@ -4,14 +4,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_awesome_charts/src/flutter_awesome_charts_model/line_chart_model.dart';
 import 'package:intl/intl.dart' show DateFormat;
 
-///Paints a line inside the available space based on [series]
+///Paints a line inside the available space based on [data]
 class SimpleLineChartPainter extends CustomPainter {
-  final List<SeriesData> series;
+  final List<SeriesData> data;
   final double topLimit;
   final double bottomLimit;
   final int leftLimit;
   final int rightLimit;
   final double percentage;
+
+  final Brightness brightness;
 
   final bool drawLine;
   final bool drawPoints;
@@ -27,19 +29,22 @@ class SimpleLineChartPainter extends CustomPainter {
   int pxBetweenLines = 40;
   int pxBetweenVerticalLines = 150;
   String dateFormat = "dd/MM/yyyy HH:mm:ss";
+  final Offset? mousePosition;
 
   double get x => ((rightLimit - leftLimit) * percentage / 100) + leftLimit;
 
   SimpleLineChartPainter({
-    required this.series,
+    required this.data,
     required this.topLimit,
     required this.bottomLimit,
     required this.leftLimit,
     required this.rightLimit,
     this.percentage = 100,
     this.margin = EdgeInsets.zero,
+    required this.brightness,
     this.drawLine = true,
     this.drawPoints = false,
+    this.mousePosition,
   }) {
     //margen izquierdo basado en el límite superior del eje
     margin = margin.copyWith(
@@ -48,79 +53,103 @@ class SimpleLineChartPainter extends CustomPainter {
   }
 
   @override
-  void paint(Canvas canvas, Size size) {
-    updateDateFormat(size);
-    updateMargin();
-    linesNumber = chartHeight(size) ~/ pxBetweenLines;
-    drawLines(size, canvas);
-  }
+  bool shouldRepaint(covariant SimpleLineChartPainter oldDelegate) => true;
 
   @override
-  bool shouldRepaint(covariant SimpleLineChartPainter oldDelegate) =>
-      oldDelegate.percentage != percentage;
+  void paint(Canvas canvas, Size size) {
+    updateDateFormat(size);
+    updateMargin(size);
+    _drawLines(size, canvas);
+  }
 
-  void drawLines(Size size, Canvas canvas) {
-    for (var element in series) {
-      List<DataPoint> points = element.data;
-      for (int i = 0; i < points.length - 1; i++) {
-        if (x >= points[i].time.millisecondsSinceEpoch) {
-          Offset firstPoint = getPointPosition(points[i].toOffset(), size);
-          Offset secondPoint = getPointPosition(points[i + 1].toOffset(), size);
-          Offset nextPoint = getPointPosition(
-              _getPointBetween(points[i].toOffset(), points[i + 1].toOffset(),
-                  element.maxTimestamp, element.minTimestamp, x),
-              size);
-          if (drawLine) {
-            canvas.drawLine(firstPoint, nextPoint, getLinePaint(element));
-          }
-          if(drawPoints) {
-            canvas.drawCircle(firstPoint, 2.5, getPointPaint(element));
-          }
-          if (secondPoint != nextPoint && drawPoints && drawLine) {
-            canvas.drawCircle(nextPoint, 3, getPointPaint(element));
+  Paint _getLinePaint(SeriesData lineData) => Paint()
+    ..strokeWidth = 1
+    ..color = brightness == Brightness.light
+        ? lineData.color[600]!.withOpacity(0.8)
+        : lineData.color[500]!.withOpacity(0.8);
+
+  Paint _getPointPaint(SeriesData lineData) => Paint()
+    ..strokeWidth = 1
+    ..color = lineData.color;
+
+  void _drawLines(Size size, Canvas canvas) {
+    for (var series in data) {
+      if (series.visible) {
+        List<DataPoint> points = series.points;
+        for (int i = 0; i < points.length - 1; i++) {
+          if (x >= points[i].time.millisecondsSinceEpoch) {
+            Offset firstPoint = pointToOffset(points[i].toOffset(), size);
+            Offset secondPoint = pointToOffset(points[i + 1].toOffset(), size);
+            Offset nextPoint = pointToOffset(
+                _getPointBetween(points[i].toOffset(), points[i + 1].toOffset(),
+                    series.maxTimestamp, series.minTimestamp, x),
+                size);
+            if (drawLine) {
+              canvas.drawLine(firstPoint, nextPoint, _getLinePaint(series));
+            }
+            if (percentage == 100 &&
+                mousePosition != null &&
+                mousePosition!.dx >= firstPoint.dx &&
+                mousePosition!.dx <= secondPoint.dx) {
+              double firstDifference =
+                  (mousePosition!.dx - firstPoint.dx).abs();
+              double secondDifference =
+                  (mousePosition!.dx - secondPoint.dx).abs();
+              if (firstDifference <= secondDifference) {
+                //Resaltar primer punto
+                canvas.drawCircle(firstPoint, 4, _getPointPaint(series));
+                series.selection = points[i];
+                if (drawPoints) {
+                  canvas.drawCircle(secondPoint, 2.5, _getPointPaint(series));
+                }
+              } else {
+                //Resaltar segundo punto
+                canvas.drawCircle(secondPoint, 4, _getPointPaint(series));
+                series.selection = points[i + 1];
+                if (drawPoints) {
+                  canvas.drawCircle(firstPoint, 2.5, _getPointPaint(series));
+                }
+              }
+            } else {
+              if (mousePosition == null) {
+                series.selection = null;
+              }
+              if (drawPoints) {
+                canvas.drawCircle(firstPoint, 2.5, _getPointPaint(series));
+              }
+            }
+            if (secondPoint != nextPoint && drawPoints && drawLine) {
+              canvas.drawCircle(nextPoint, 3, _getPointPaint(series));
+            }
           }
         }
-      }
-      if (percentage == 100 && drawPoints) {
-        canvas.drawCircle(getPointPosition(points.last.toOffset(), size), 2.5,
-            getPointPaint(element));
+        if (percentage == 100 && drawPoints) {
+          canvas.drawCircle(pointToOffset(points.last.toOffset(), size), 2.5,
+              _getPointPaint(series));
+        }
       }
     }
   }
 
-  Paint getLinePaint(SeriesData lineData) => Paint()
-    ..strokeWidth = 2
-    ..color = lineData.color.withOpacity(0.5);
 
-  Paint getGridPaint() => Paint()
-    ..strokeWidth = 1
-    ..color = Colors.grey.withOpacity(0.5);
-
-  Paint getPointPaint(SeriesData lineData) => Paint()
-    ..strokeWidth = 1
-    ..color = lineData.color;
-
-  Offset getPointPosition(Offset dataPoint, Size size) => Offset(
-      getHorizontalPosition(size, dataPoint.dx),
-      getVerticalPosition(size, dataPoint.dy));
+  Offset pointToOffset(Offset dataPoint, Size size) =>
+      Offset(pointWidth(size, dataPoint.dx), pointHeight(size, dataPoint.dy));
 
   double chartHeight(Size size) => size.height - margin.top - margin.bottom;
 
   double chartWidth(Size size) => size.width - margin.right - margin.left;
 
-  double getVerticalPosition(Size size, double value) =>
-      size.height -
-      margin.bottom -
-      _getVerticalDistance(size) * (value - bottomLimit);
+  double pointHeight(Size size, double value) =>
+      size.height - margin.bottom - verticalRatio(size) * (value - bottomLimit);
 
-  double _getVerticalDistance(Size size) =>
+  double verticalRatio(Size size) =>
       chartHeight(size) / (topLimit - bottomLimit);
 
-  double getHorizontalDistance(Size size) =>
-      chartWidth(size) / (rightLimit - leftLimit);
+  double pointWidth(Size size, double value) =>
+      margin.left + horizontalRatio(size) * (value - leftLimit);
 
-  double getHorizontalPosition(Size size, double value) =>
-      margin.left + getHorizontalDistance(size) * (value - leftLimit);
+  double horizontalRatio(Size size) =>
+      chartWidth(size) / (rightLimit - leftLimit);
 
   Offset _getPointBetween(Offset first, Offset second, int maxTimestamp,
       int minTimestamp, double x) {
@@ -162,7 +191,8 @@ class SimpleLineChartPainter extends CustomPainter {
     return value.toStringAsFixed(precision);
   }
 
-  void updateMargin() {
+  void updateMargin(Size size) {
+    linesNumber = chartHeight(size) ~/ pxBetweenLines;
     for (double height = bottomLimit;
         height <= topLimit;
         height = height + ((topLimit - bottomLimit) / linesNumber)) {
@@ -210,18 +240,18 @@ class SimpleLineChartPainter extends CustomPainter {
     } else {
       interval = const Duration(milliseconds: 200);
     }
-    double distance = getHorizontalDistance(size) * interval.inMilliseconds;
+    double distance = horizontalRatio(size) * interval.inMilliseconds;
     TextPainter tp = createText(
         "00/00 00:00" + (interval.inSeconds < 1 ? ".000" : ""), textScale);
     while (distance < tp.width + 32) {
       interval *= 2;
-      distance = getHorizontalDistance(size) * interval.inMilliseconds;
+      distance = horizontalRatio(size) * interval.inMilliseconds;
       tp = createText(
           "00/00 00:00" + (interval.inSeconds < 1 ? ".000" : ""), textScale);
     }
     while (distance > tp.width * 2 + 32) {
       interval ~/= 2;
-      distance = getHorizontalDistance(size) * interval.inMilliseconds;
+      distance = horizontalRatio(size) * interval.inMilliseconds;
       tp = createText(
           "00/00 00:00" + (interval.inSeconds < 1 ? ".000" : ""), textScale);
     }

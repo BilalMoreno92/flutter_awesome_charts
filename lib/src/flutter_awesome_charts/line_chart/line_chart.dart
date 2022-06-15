@@ -1,5 +1,6 @@
 import 'dart:math';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_awesome_charts/src/flutter_awesome_charts/line_chart/grid_painter.dart';
 import 'package:flutter_awesome_charts/src/flutter_awesome_charts/line_chart/legend_widget.dart';
@@ -43,11 +44,14 @@ class _LineChartState extends State<LineChart>
   late int rightLimit;
   late double verticalDistance;
   late double horizontalDistance;
+  Offset? mousePosition;
+  List<DataPoint> selection = [];
 
   @override
   Widget build(BuildContext context) {
     super.build(context);
     updateLimits();
+    Brightness _brightness = Theme.of(context).brightness;
     return Container(
       padding: widget.padding,
       child: TweenAnimationBuilder(
@@ -66,18 +70,21 @@ class _LineChartState extends State<LineChart>
                       series: widget.series,
                       percentage: percentage,
                       legend: widget.legend,
+                      onVisibilityChanged: onVisibilityChanged,
+                      showSelection: mousePosition != null,
                     ),
                   Expanded(
                     flex: 5,
                     child: LayoutBuilder(
-                      builder: (context, constraints) => SingleChildScrollView(
-                        scrollDirection: Axis.vertical,
-                        controller: ScrollController(),
+                      builder: (context, constraints) => MouseRegion(
+                        onHover: (event) =>
+                            setState(() => mousePosition = event.localPosition),
+                        onExit: (event) => setState(() => mousePosition = null),
                         child: CustomPaint(
                           size: Size(max(constraints.maxWidth, 150),
                               max(constraints.maxHeight, 100)),
                           foregroundPainter: SimpleLineChartPainter(
-                            series: widget.series,
+                            data: widget.series,
                             bottomLimit: bottomLimit,
                             topLimit: topLimit,
                             rightLimit: rightLimit,
@@ -85,6 +92,8 @@ class _LineChartState extends State<LineChart>
                             percentage: percentage,
                             drawPoints: widget.drawPoints,
                             drawLine: widget.drawLine,
+                            mousePosition: mousePosition,
+                            brightness: _brightness,
                           ),
                           painter: SimpleLineChartGridPainter(
                             series: widget.series,
@@ -95,6 +104,8 @@ class _LineChartState extends State<LineChart>
                             percentage: percentage,
                             drawAxis: widget.drawAxis,
                             drawGrid: widget.drawGrid,
+                            mousePosition: mousePosition,
+                            brightness: _brightness,
                           ),
                         ),
                       ),
@@ -104,13 +115,18 @@ class _LineChartState extends State<LineChart>
                           widget.legendPosition == LegendPosition.bottom) &&
                       widget.legend != Legend.none)
                     LegendWidget(
-                      series: widget.series,
-                      percentage: percentage,
-                      legend: widget.legend,
-                    ),
+                        series: widget.series,
+                        percentage: percentage,
+                        legend: widget.legend,
+                        onVisibilityChanged: onVisibilityChanged,
+                        showSelection: mousePosition != null),
                 ],
               )),
     );
+  }
+
+  void onVisibilityChanged(_) {
+    setState(() {});
   }
 
   void updateLimits() {

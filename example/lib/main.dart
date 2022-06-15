@@ -7,96 +7,97 @@ import 'package:flutter_awesome_charts/flutter_awesome_charts_model.dart'
     show SeriesData, DataPoint;
 
 void main() {
-  runApp(const MyApp());
+  runApp(const ExampleApp());
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({Key? key}) : super(key: key);
+class ExampleApp extends StatefulWidget {
+  const ExampleApp({Key? key}) : super(key: key);
 
-  // This widget is the root of your application.
+  @override
+  State<ExampleApp> createState() => _ExampleAppState();
+}
+
+class _ExampleAppState extends State<ExampleApp> {
+  Brightness _brightness = Brightness.light;
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-        brightness: Brightness.dark,
-      ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
-    );
-  }
-}
-
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({Key? key, required this.title}) : super(key: key);
-
-  final String title;
-
-  @override
-  State<MyHomePage> createState() => _MyHomePageState();
-}
-
-class _MyHomePageState extends State<MyHomePage> {
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.title),
-      ),
-      body: GridView(
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2, mainAxisExtent: 300),
-        children: [
-          LineChart(
-            padding: const EdgeInsets.all(0),
-            series: [
-              seriesData,
-              seriesData3,
-              seriesData4,
+      debugShowCheckedModeBanner: false,
+        title: 'Flutter Demo',
+        theme: ThemeData(
+          primarySwatch: Colors.blue,
+          brightness: _brightness,
+        ),
+        home: Scaffold(
+          appBar: AppBar(
+            actions: [
+              IconButton(
+                  onPressed: () => setState(() {
+                      if (_brightness == Brightness.light) {
+                        _brightness = Brightness.dark;
+                      } else {
+                        _brightness = Brightness.light;
+                      }
+                    }),
+                  icon: const Icon(Icons.brightness_6))
             ],
-            legend: Legend.table,
-            legendPosition: LegendPosition.left,
-            animate: true,
+            title: const Text("Flutter Awesome Charts"),
           ),
-          LineChart(
-            padding: const EdgeInsets.all(0),
-            series: [
-              seriesData2,
-              seriesData3, /*seriesData2, seriesData3, seriesData4*/
+          body: GridView(
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 1, mainAxisExtent: 500),
+            children: [
+              LineChart(
+                padding: const EdgeInsets.all(0),
+                series: [
+                  seriesData,
+                  seriesData3,
+                  seriesData4,
+                ],
+                legend: Legend.table,
+                legendPosition: LegendPosition.left,
+                animate: true,
+              ),
+              LineChart(
+                padding: const EdgeInsets.all(0),
+                series: [
+                  seriesData2,
+                  seriesData3, /*seriesData2, seriesData3, seriesData4*/
+                ],
+                animate: true,
+                drawPoints: true,
+                drawAxis: false,
+                legend: Legend.list,
+              ),
+              LineChart(
+                padding: const EdgeInsets.all(0),
+                series: [seriesData3, seriesData4],
+                legend: Legend.table,
+                legendPosition: LegendPosition.right,
+                drawPoints: true,
+                drawGrid: true,
+              ),
+              LineChart(
+                padding: const EdgeInsets.all(0),
+                series: [
+                  seriesData4, /*seriesData2, seriesData3, seriesData4*/
+                ],
+                animate: true,
+                drawPoints: true,
+                drawLine: false,
+                drawGrid: true,
+              ),
             ],
-            animate: true,
-            drawPoints: true,
-            drawAxis: false,
-            legend: Legend.list,
           ),
-          LineChart(
-            padding: const EdgeInsets.all(0),
-            series: [seriesData3, seriesData4],
-            legend: Legend.table,
-            legendPosition: LegendPosition.right,
-            drawPoints: true,
-            drawGrid: true,
-          ),
-          LineChart(
-            padding: const EdgeInsets.all(0),
-            series: [
-              seriesData4, /*seriesData2, seriesData3, seriesData4*/
-            ],
-            animate: true,
-            drawPoints: true,
-            drawLine: false,
-            drawGrid: true,
-          ),
-        ],
-      ),
-    );
+        ));
   }
 }
 
 final SeriesData seriesData = SeriesData(
     color: Colors.pink,
     label: "Temperatura",
-    data: [
+    points: [
       {"time": "2022-04-07T12:36:00.000Z", "mean": 0},
       {"time": "2022-04-07T12:36:05.000Z", "mean": 0.1},
       {"time": "2022-04-07T12:36:10.000Z", "mean": 0.2},
@@ -155,20 +156,20 @@ final Random random = Random();
 final SeriesData seriesData2 = SeriesData(
     label: "Vibración",
     color: Colors.amber,
-    data: seriesData.data
+    points: seriesData.points
         .map((e) => DataPoint(e.time, ((random.nextInt(600)) / 10000)))
         .toList());
 
 final SeriesData seriesData3 = SeriesData(
     label: "Caudal",
     color: Colors.orange,
-    data: seriesData.data
+    points: seriesData.points
         .map((e) => DataPoint(e.time, ((random.nextInt(600)) / 100)))
         .toList());
 
 final SeriesData seriesData4 = SeriesData(
     label: "Humedad",
     color: Colors.cyan,
-    data: seriesData.data
+    points: seriesData.points
         .map((e) => DataPoint(e.time, ((random.nextInt(600)) / 100)))
         .toList());
